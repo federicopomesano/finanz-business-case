@@ -1,63 +1,123 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUtente } from "@/components/Providers";
-import { BottomBar, ChipStato, Icona, PrimaryButton, SecondaryButton, TastoTondo } from "@/components/ui";
-import { NOME_RAMO, type Ramo } from "@/lib/utenti";
+import { NOME_RAMO } from "@/lib/utenti";
+import { BottomBar, PrimaryButton, SecondaryButton, Icona } from "@/components/ui";
+import { CalcolatoreVita } from "@/components/CalcolatoreVita";
 
-const OGGETTO: Partial<Record<Ramo, string>> = { casa: "casa del tuo immobile" };
-const AVVISO: Partial<Record<Ramo, string>> = { vita: "Ti chiederemo anche qualche dato sulla tua salute." };
+// Mappatura stime risparmio medio / valore per la Value Preview
+const STIMA_RISPARMIO: Record<string, { risparmio: string; nota: string }> = {
+  rc_auto: { risparmio: "fino a 140€/anno", nota: "Sulla tua polizza RC Auto" },
+  casa: { risparmio: "fino a 95€/anno", nota: "Protezione incendio e caparra" },
+  salute: { risparmio: "fino a 180€/anno", nota: "Rimborso visite e degenze" },
+  vita: { risparmio: "da 7,50€/mese", nota: "Capitale garantito fino a 200.000€" },
+  dentale: { risparmio: "fino a 110€/anno", nota: "Pulizia e cure coperte" },
+};
 
-// La schermata che porta al comparatore del partner, dopo il percorso.
-export default function SchermataPartner() {
-  const { utente, track } = useUtente();
+export default function PartnerPage() {
   const router = useRouter();
-  const tracciato = useRef(false);
+  const { utente, track, toast } = useUtente();
+  const [mostraCalcolatore, setMostraCalcolatore] = useState(utente.ramo === "vita");
 
+  // Track automatico dell'evento "Partner Screen Viewed" al mount
   useEffect(() => {
-    if (tracciato.current) return;
-    tracciato.current = true;
-    track("Partner Screen Viewed");
-  }, [track]);
+    track("Partner Screen Viewed", {
+      ramo: utente.ramo,
+      onboarding_intent: utente.onboarding_intent,
+    });
+  }, [track, utente]);
+
+  // Gestione della CTA con Value Preview integrata
+  const gestisciCtaPartner = (origine = "main_cta", extra = {}) => {
+    track("Partner CTA Clicked", {
+      ramo: utente.ramo,
+      origine,
+      ...extra,
+    });
+    toast("Reindirizzamento al comparatore partner...");
+  };
+
+  const infoRisparmio = STIMA_RISPARMIO[utente.ramo] ?? {
+    risparmio: "fino a 120€/anno",
+    nota: "Preventivo su misura",
+  };
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="sticky top-0 z-10 flex items-center justify-between bg-white px-4 py-4">
-        <TastoTondo label="Chiudi" onClick={() => router.push("/")}>
-          <Icona nome="x" size={22} />
-        </TastoTondo>
-        <ChipStato serie={false} />
-      </div>
-
-      <div className="flex flex-col gap-5 px-4 pt-4 pb-8">
-        <h1 className="text-[34px] leading-tight font-bold tracking-tight">🛡️ Trova la tua polizza</h1>
-        <p className="text-lg leading-snug font-semibold">
-          Confronta in pochi minuti le offerte di tante compagnie per la polizza{" "}
-          {OGGETTO[utente.ramo] ?? NOME_RAMO[utente.ramo]}.
-        </p>
-        <p className="rounded-2xl bg-box-azzurro px-6 py-4 text-lg leading-relaxed">
-          Un solo modulo, tanti preventivi. Vedi prezzi, massimali e franchigie uno accanto all&apos;altro.
-        </p>
-        <p className="rounded-2xl bg-box-giallo px-6 py-4 text-lg leading-relaxed">
-          Il confronto è gratis e non ti impegna. {AVVISO[utente.ramo]}
-        </p>
-        <p className="text-sm leading-relaxed text-muted">
-          Finanz non è un intermediario assicurativo e non ti consiglia una polizza specifica. Il confronto è offerto da un
-          partner iscritto al Registro Unico degli Intermediari (RUI).
+    <div className="flex flex-col min-h-full bg-white px-4 pt-6 pb-24">
+      {/* Header Risultato */}
+      <div className="text-center">
+        <span className="text-5xl">🎉</span>
+        <h1 className="mt-3 text-2xl font-bold text-ink">
+          Percorso Completato, {utente.nome}!
+        </h1>
+        <p className="mt-1 text-sm text-muted">
+          Hai dimostrato un'ottima conoscenza delle polizze sul ramo{" "}
+          <span className="font-semibold text-ink">{NOME_RAMO[utente.ramo]}</span>.
         </p>
       </div>
 
+      {/* VALUE PREVIEW (Risolve il bottone al 20% di conversione) */}
+      <div className="mt-6 rounded-[24px] bg-gradient-to-br from-kiwi-400/20 to-soft p-5 border border-forest/20">
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-forest p-1 text-white">
+            <Icona nome="check" size={16} />
+          </span>
+          <span className="text-xs font-bold text-forest uppercase tracking-wider">
+            Value Preview Riservata
+          </span>
+        </div>
+
+        <div className="mt-3">
+          <p className="text-xs text-muted">Risparmio stimato personalizzato:</p>
+          <p className="text-3xl font-extrabold text-forest">
+            {infoRisparmio.risparmio}
+          </p>
+          <p className="text-xs text-ink/70 mt-0.5">{infoRisparmio.nota}</p>
+        </div>
+
+        <ul className="mt-4 flex flex-col gap-2 text-xs text-ink/80 border-t border-forest/10 pt-3">
+          <li className="flex items-center gap-2">
+            <span className="text-forest">✓</span> Confronto istantaneo tra 5+ compagnie
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="text-forest">✓</span> Nessun costo nascosto o vincolo
+          </li>
+        </ul>
+      </div>
+
+      {/* SEZIONE SPECIALE RAMO VITA (Payout 80€) */}
+      <div className="mt-6">
+        {utente.ramo !== "vita" && (
+          <button
+            onClick={() => setMostraCalcolatore(!mostraCalcolatore)}
+            className="w-full text-left flex items-center justify-between p-3.5 rounded-2xl bg-soft text-sm font-semibold text-ink"
+          >
+            <span>💡 Vuoi proteggere la tua famiglia? (Ramo Vita)</span>
+            <span>{mostraCalcolatore ? "▲" : "▼"}</span>
+          </button>
+        )}
+
+        {(mostraCalcolatore || utente.ramo === "vita") && (
+          <div className="mt-2">
+            <CalcolatoreVita
+              onCalcola={(capitale, rata) => {
+                gestisciCtaPartner("calcolatore_vita", { capitale, rata });
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* BOTTOM BAR CON CTA PRINCIPALE */}
       <BottomBar>
-        <PrimaryButton
-          onClick={() => {
-            track("Partner CTA Clicked");
-            router.push("/comparatore");
-          }}
-        >
-          Confronta le polizze
+        <PrimaryButton onClick={() => gestisciCtaPartner("main_cta")}>
+          Confronta e Risparmia Ora →
         </PrimaryButton>
-        <SecondaryButton onClick={() => router.push("/")}>Torna alla Home</SecondaryButton>
+        <SecondaryButton onClick={() => router.push("/percorso")}>
+          Torna al Percorso
+        </SecondaryButton>
       </BottomBar>
     </div>
   );
